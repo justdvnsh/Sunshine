@@ -1,17 +1,12 @@
 package com.example.sunshine;
 
 import android.net.Uri;
-import android.net.UrlQuerySanitizer;
 import android.os.AsyncTask;
 import android.os.Bundle;
-
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
-import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,11 +14,11 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.w3c.dom.Text;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Scanner;
@@ -33,14 +28,17 @@ public class MainActivity extends AppCompatActivity {
     TextView weatherData;
     ProgressBar progressBar;
     TextView errorMessage;
-    final static String BASE_URL = "https://api.openweathermap.org/data/2.5/weather";
+    final static String BASE_URL = "https://api.openweathermap.org/data/2.5/forecast";
     final static String PARAM_QUERY = "q";
+    final static String UNITS = "units";
+    final static String CNT = "cnt";
     final static String APP_ID = "appid";
 
 
     public URL buildUri(String text) {
 
         Uri builtUri = Uri.parse(BASE_URL).buildUpon().appendQueryParameter(PARAM_QUERY, text)
+                .appendQueryParameter(CNT, "7").appendQueryParameter(UNITS, "metric")
                 .appendQueryParameter(APP_ID, "7ae534c3dc8e5ffc15f22533a0f91e11").build();
 
         URL url = null;
@@ -111,6 +109,7 @@ public class MainActivity extends AppCompatActivity {
             if ( s != null & !s.equals("") ) {
                 showJSONData();
                 weatherData.setText(s);
+                parseJSON(s);
             } else {
                 showErrorMessage();
             }
@@ -122,6 +121,22 @@ public class MainActivity extends AppCompatActivity {
         URL url = buildUri("London");
         Toast.makeText(MainActivity.this, url.toString(), Toast.LENGTH_SHORT).show();
         new LoadWeatherData().execute(url);
+
+    }
+
+    public void parseJSON(String result) {
+
+        try {
+            JSONObject weather = new JSONObject(result);
+            JSONObject coord = weather.getJSONObject("coord");
+            weatherData.append("\n");
+            weatherData.append(coord.getString("lon"));
+            weatherData.append("\n");
+            weatherData.append(coord.getString("lat"));
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
 
     }
 
@@ -164,6 +179,7 @@ public class MainActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_refresh) {
+            weatherData.setText("");
             showWeather();
         }
 
