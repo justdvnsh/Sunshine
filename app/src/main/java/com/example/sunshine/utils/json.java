@@ -99,7 +99,7 @@ public class json {
             low = temperatureObject.getDouble(OWM_MIN);
 //            highAndLow = SunshineWeatherUtils.formatHighLows(context, high, low);
 
-            parsedWeatherData[i] = date + " - " + description;
+            parsedWeatherData[i] = date + " - " + description + " - " + Double.toString(high) + " / " + Double.toString(low);
         }
 
         return parsedWeatherData;

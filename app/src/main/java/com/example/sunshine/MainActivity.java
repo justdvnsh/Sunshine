@@ -1,5 +1,6 @@
 package com.example.sunshine;
 
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 
@@ -20,7 +21,7 @@ import com.example.sunshine.utils.json;
 
 import java.net.URL;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements forecastAdapter.ListItemOnClickListener {
 
     ProgressBar progressBar;
     TextView errorMessage;
@@ -100,9 +101,18 @@ public class MainActivity extends AppCompatActivity {
         LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         recycle.setLayoutManager(layoutManager);
         recycle.setHasFixedSize(true);
-        adapter = new forecastAdapter();
+        adapter = new forecastAdapter(this);
         recycle.setAdapter(adapter);
+        adapter.setWeatherData(null);
+        showWeather();
 
+    }
+
+    @Override
+    public void onItemClickListener(String weather) {
+        Intent intent = new Intent(MainActivity.this, DetailActivity.class);
+        intent.putExtra("WeatherData", weather);
+        startActivity(intent);
     }
 
     @Override

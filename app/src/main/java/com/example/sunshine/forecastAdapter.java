@@ -14,7 +14,16 @@ public class forecastAdapter extends RecyclerView.Adapter<forecastAdapter.foreca
 
     private String[] weatherData;
 
-    public forecastAdapter() {}
+    final private ListItemOnClickListener mOnClickListener;
+
+    public interface ListItemOnClickListener {
+        void onItemClickListener(String weather);
+    }
+
+    public forecastAdapter(ListItemOnClickListener onClickListener) {
+        mOnClickListener = onClickListener;
+    }
+
     @Override
     public forecastViewHolder onCreateViewHolder(ViewGroup viewGroup, int viewType) {
         Context context = viewGroup.getContext();
@@ -44,13 +53,21 @@ public class forecastAdapter extends RecyclerView.Adapter<forecastAdapter.foreca
     }
 
 
-    public class forecastViewHolder extends RecyclerView.ViewHolder {
+    public class forecastViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
 
         public final TextView weatherDataTextView;
 
         public forecastViewHolder(View view) {
             super(view);
             weatherDataTextView = (TextView) view.findViewById(R.id.tv_weather_data);
+            view.setOnClickListener(this);
+        }
+
+        @Override
+        public void onClick(View view) {
+            int clickedPosition = getAdapterPosition();
+            String weather = weatherData[clickedPosition];
+            mOnClickListener.onItemClickListener(weather);
         }
 
     }
