@@ -4,8 +4,13 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.AsyncTaskLoader;
+import androidx.loader.content.Loader;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -14,66 +19,91 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import com.example.sunshine.utils.Network;
 import com.example.sunshine.utils.json;
 
 import java.net.URL;
 
-public class MainActivity extends AppCompatActivity implements forecastAdapter.ListItemOnClickListener {
+public class MainActivity extends AppCompatActivity implements forecastAdapter.ListItemOnClickListener, LoaderManager.LoaderCallbacks<String[]> {
 
     ProgressBar progressBar;
     TextView errorMessage;
     RecyclerView recycle;
     forecastAdapter adapter;
+    private final static int LOADER = 22;
 
-    public class LoadWeatherData extends AsyncTask<URL, Void, String[]> {
+    @NonNull
+    @Override
+    public Loader<String[]> onCreateLoader(int id, @Nullable final Bundle args) {
+        return new AsyncTaskLoader<String[]>(this) {
 
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            progressBar.setVisibility(View.VISIBLE);
-        }
+            String weatherJSON[] = null;
 
-        @Override
-        protected String[] doInBackground(URL... urls) {
-            URL url = urls[0];
+            @Override
+            protected void onStartLoading() {
 
-            try {
+                if (weatherJSON != null) {
+                    deliverResult(weatherJSON);
+                } else {
 
-                String result = Network.getResponseFromHttpUrl(url);
+                    progressBar.setVisibility(View.VISIBLE);
+                    forceLoad();
 
-                String[] simpleJsonWeatherData = json.parseJson(
-                        MainActivity.this, result);
+                }
 
-                return simpleJsonWeatherData;
-
-            } catch(Exception e) {
-                e.printStackTrace();
-                return null;
             }
-        }
 
-        @Override
-        protected void onPostExecute(String[] data) {
-            progressBar.setVisibility(View.INVISIBLE);
-            if ( data != null) {
-                showJSONData();
-                adapter.setWeatherData(data);
-            } else {
-                showErrorMessage();
+            @Nullable
+            @Override
+            public String[] loadInBackground() {
+                URL url = Network.buildUri("London");
+
+                try {
+
+                    String result = Network.getResponseFromHttpUrl(url);
+
+                    String[] simpleJsonWeatherData = json.parseJson(
+                            MainActivity.this, result);
+
+                    return simpleJsonWeatherData;
+
+                } catch(Exception e) {
+                    e.printStackTrace();
+                    return null;
+                }
             }
+
+            public void deliverResult(String[] data) {
+                weatherJSON = data;
+                super.deliverResult(data);
+            }
+        };
+    }
+
+    @Override
+    public void onLoadFinished(@NonNull Loader<String[]> loader, String[] data) {
+        progressBar.setVisibility(View.INVISIBLE);
+        adapter.setWeatherData(data);
+        if ( data != null) {
+            showJSONData();
+        } else {
+            showErrorMessage();
         }
     }
 
-    public void showWeather() {
-
-        URL url = Network.buildUri("London");
-        Toast.makeText(MainActivity.this, url.toString(), Toast.LENGTH_SHORT).show();
-        new LoadWeatherData().execute(url);
+    @Override
+    public void onLoaderReset(@NonNull Loader<String[]> loader) {
 
     }
+
+
+//    public void showWeather() {
+//
+//        URL url = Network.buildUri("London");
+//        Toast.makeText(MainActivity.this, url.toString(), Toast.LENGTH_SHORT).show();
+//
+//
+//    }
 
 
 
@@ -104,7 +134,10 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         adapter = new forecastAdapter(this);
         recycle.setAdapter(adapter);
         adapter.setWeatherData(null);
-        showWeather();
+
+        Bundle queryBundle = null;
+
+        getSupportLoaderManager().initLoader(LOADER, queryBundle, this);
 
     }
 
@@ -132,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_refresh) {
             adapter.setWeatherData(null);
-            showWeather();
+            getSupportLoaderManager().restartLoader(LOADER, null, this);
         }
 
         return super.onOptionsItemSelected(item);
