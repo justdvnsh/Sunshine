@@ -1,6 +1,7 @@
 package com.example.sunshine;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -24,6 +25,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -33,62 +35,40 @@ import com.example.sunshine.utils.Network;
 import com.example.sunshine.utils.json;
 import com.google.android.gms.maps.model.LatLng;
 
+import org.w3c.dom.Text;
+
 import java.net.URL;
 
-public class MainActivity extends AppCompatActivity implements forecastAdapter.ListItemOnClickListener, LoaderManager.LoaderCallbacks<String[]> {
+public class MainActivity extends AppCompatActivity implements forecastAdapter.ListItemOnClickListener, LoaderManager.LoaderCallbacks<String[]>, SharedPreferences.OnSharedPreferenceChangeListener {
 
     ProgressBar progressBar;
     TextView errorMessage;
+    TextView mLocation;
     RecyclerView recycle;
     forecastAdapter adapter;
     private final static int LOADER = 22;
     protected static LatLng userLocation;
+    protected  static Location lastKnownLocation;
     LocationManager locationManager;
     LocationListener locationListener;
+    URL urlToSearch;
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ) {
 
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5*60*1000, 100, locationListener);
+                try {
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, 10, locationListener);
+                    lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 
             }
         }
-    }
-
-    public void getLocation() {
-
-        locationListener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                userLocation = new LatLng(location.getLatitude(), location.getLongitude());
-            }
-
-            @Override
-            public void onStatusChanged(String s, int i, Bundle bundle) {
-
-            }
-
-            @Override
-            public void onProviderEnabled(String s) {
-
-            }
-
-            @Override
-            public void onProviderDisabled(String s) {
-
-            }
-        };
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-        } else {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5 * 60 * 1000, 10, locationListener);
-        }
-
     }
 
     @NonNull
@@ -115,16 +95,20 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
             @Nullable
             @Override
             public String[] loadInBackground() {
-                URL url = Network.buildUriFromCityName("london");
 
                 try {
 
-                    String result = Network.getResponseFromHttpUrl(url);
+                    if (urlToSearch != null) {
 
-                    String[] simpleJsonWeatherData = json.parseJson(
-                            MainActivity.this, result);
+                        String result = Network.getResponseFromHttpUrl(urlToSearch);
 
-                    return simpleJsonWeatherData;
+                        String[] simpleJsonWeatherData = json.parseJson(
+                                MainActivity.this, result);
+
+                        return simpleJsonWeatherData;
+                    } else {
+                        return null;
+                    }
 
                 } catch(Exception e) {
                     e.printStackTrace();
@@ -165,9 +149,51 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         errorMessage.setVisibility(View.VISIBLE);
     }
 
-    public void setupSharedPreferences() {
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+    public void getUrlToSearch(SharedPreferences sharedPreferences) {
+        if (sharedPreferences.getBoolean(getResources().getString(R.string.location_key), true)) {
 
+            locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+            locationListener = new LocationListener() {
+                @Override
+                public void onLocationChanged(final Location location) {
+                    Log.i("Location", location.toString());
+                    mLocation.setText("Location set To " + String.valueOf(location.getLatitude()) + " " + String.valueOf(location.getLongitude()));
+                    userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                    urlToSearch = Network.buildUriFromCoordinates(userLocation);
+                }
+
+                @Override
+                public void onStatusChanged(String s, int i, Bundle bundle) {
+
+                }
+
+                @Override
+                public void onProviderEnabled(String s) {
+
+                }
+
+                @Override
+                public void onProviderDisabled(String s) {
+
+                }
+            };
+
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+            } else {
+                try {
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, 10, locationListener);
+                    lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                    LatLng latLng = new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude());
+                    urlToSearch = Network.buildUriFromCoordinates(latLng);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            urlToSearch = Network.buildUriFromCityName("London");
+            mLocation.setText("Location set to London !");
+        }
     }
 
     @Override
@@ -179,6 +205,7 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
 
         progressBar = (ProgressBar) findViewById(R.id.progress_bar);
         errorMessage = (TextView) findViewById(R.id.error_message);
+        mLocation = (TextView) findViewById(R.id.location);
         recycle = (RecyclerView) findViewById(R.id.recycle);
 
         LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
@@ -188,11 +215,13 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         recycle.setAdapter(adapter);
         adapter.setWeatherData(null);
 
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
+        getUrlToSearch(sharedPreferences);
+
         Bundle queryBundle = null;
 
         getSupportLoaderManager().initLoader(LOADER, queryBundle, this);
-
-        setupSharedPreferences();
 
     }
 
@@ -229,5 +258,20 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String s) {
+        if (s.equals(getResources().getString(R.string.location_key))) {
+            adapter.setWeatherData(null);
+            getUrlToSearch(sharedPreferences);
+            getSupportLoaderManager().restartLoader(LOADER, null, this);
+        }
     }
 }

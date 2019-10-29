@@ -19,10 +19,21 @@
         android:layout_width="match_parent"
         android:layout_gravity="center"/>
 
+    <TextView
+        android:id="@+id/location"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:textSize="24sp"
+        android:padding="18dp"
+        android:layout_margin="20dp"
+        />
+
     <androidx.recyclerview.widget.RecyclerView
         android:layout_height="match_parent"
         android:layout_width="match_parent"
-        android:id="@+id/recycle"/>
+        android:id="@+id/recycle"
+        />
 
     <ProgressBar
         android:id="@+id/progress_bar"
