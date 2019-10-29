@@ -32,6 +32,11 @@
     </string>
 
 
+    <string name="summary_on_location">Currently using your location</string>
+    <string name="summary_off_location">Currently using location your searched for</string>
+    <string name="location_key">Use my Location</string>
+    <string name="location_title">Location</string>
+
     <!-- - - - - - - - - - - - - -->
     <!--Used by SunshineDateUtils-->
     <!-- - - - - - - - - - - - - -->

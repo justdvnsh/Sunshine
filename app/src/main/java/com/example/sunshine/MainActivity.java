@@ -1,6 +1,12 @@
 package com.example.sunshine;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 
@@ -8,9 +14,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.content.AsyncTaskLoader;
 import androidx.loader.content.Loader;
+import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -22,6 +31,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import com.example.sunshine.utils.Network;
 import com.example.sunshine.utils.json;
+import com.google.android.gms.maps.model.LatLng;
 
 import java.net.URL;
 
@@ -32,6 +42,54 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
     RecyclerView recycle;
     forecastAdapter adapter;
     private final static int LOADER = 22;
+    protected static LatLng userLocation;
+    LocationManager locationManager;
+    LocationListener locationListener;
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ) {
+
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5*60*1000, 100, locationListener);
+
+            }
+        }
+    }
+
+    public void getLocation() {
+
+        locationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+            }
+
+            @Override
+            public void onStatusChanged(String s, int i, Bundle bundle) {
+
+            }
+
+            @Override
+            public void onProviderEnabled(String s) {
+
+            }
+
+            @Override
+            public void onProviderDisabled(String s) {
+
+            }
+        };
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        } else {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5 * 60 * 1000, 10, locationListener);
+        }
+
+    }
 
     @NonNull
     @Override
@@ -57,7 +115,7 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
             @Nullable
             @Override
             public String[] loadInBackground() {
-                URL url = Network.buildUri("London");
+                URL url = Network.buildUriFromCityName("london");
 
                 try {
 
@@ -97,17 +155,6 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
 
     }
 
-
-//    public void showWeather() {
-//
-//        URL url = Network.buildUri("London");
-//        Toast.makeText(MainActivity.this, url.toString(), Toast.LENGTH_SHORT).show();
-//
-//
-//    }
-
-
-
     public void showJSONData() {
         recycle.setVisibility(View.VISIBLE);
         errorMessage.setVisibility(View.INVISIBLE);
@@ -116,6 +163,11 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
     public void showErrorMessage() {
         recycle.setVisibility(View.INVISIBLE);
         errorMessage.setVisibility(View.VISIBLE);
+    }
+
+    public void setupSharedPreferences() {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
     }
 
     @Override
@@ -139,6 +191,8 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         Bundle queryBundle = null;
 
         getSupportLoaderManager().initLoader(LOADER, queryBundle, this);
+
+        setupSharedPreferences();
 
     }
 
