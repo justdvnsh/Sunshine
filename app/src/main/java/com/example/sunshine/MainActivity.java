@@ -14,6 +14,7 @@ import androidx.loader.content.Loader;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.provider.Settings;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -166,6 +167,11 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         if (id == R.id.action_refresh) {
             adapter.setWeatherData(null);
             getSupportLoaderManager().restartLoader(LOADER, null, this);
+        }
+
+        if (id == R.id.action_settings) {
+            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+            startActivity(intent);
         }
 
         return super.onOptionsItemSelected(item);

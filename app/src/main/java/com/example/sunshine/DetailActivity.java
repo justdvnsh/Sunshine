@@ -1,6 +1,8 @@
 package com.example.sunshine;
 
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NavUtils;
 import androidx.core.app.ShareCompat;
 
 import android.content.Intent;
@@ -40,6 +42,12 @@ public class DetailActivity extends AppCompatActivity {
         if ( intent.resolveActivity(getPackageManager()) != null ) {
             mMainText.setText(intent.getStringExtra("WeatherData"));
         }
+
+        ActionBar actionBar = this.getSupportActionBar();
+
+        if (actionBar != null) {
+            actionBar.setDisplayHomeAsUpEnabled(true);
+        }
     }
 
     @Override
@@ -59,6 +67,10 @@ public class DetailActivity extends AppCompatActivity {
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_share) {
             shareContent();
+        }
+
+        if (id == android.R.id.home) {
+            NavUtils.navigateUpFromSameTask(this);
         }
 
         return super.onOptionsItemSelected(item);
