@@ -10,6 +10,8 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.example.sunshine.utils.SunshineDateUtils;
+
 public class sunshineContentProvider extends ContentProvider {
 
     private weatherDbHelper mWeatherDbHelper;
@@ -87,11 +89,78 @@ public class sunshineContentProvider extends ContentProvider {
 
     @Override
     public int delete(@NonNull Uri uri, @Nullable String s, @Nullable String[] strings) {
-        return 0;
+        final SQLiteDatabase db = mWeatherDbHelper.getWritableDatabase();
+
+        int match = sUriMatcher.match(uri);
+
+        int delete;
+
+        switch (match) {
+            case CODE_WEATHER:
+                String date = uri.getLastPathSegment();
+                String mSelection = " = ? ";
+                String[] mSelectionArgs = new String[] {date};
+                delete = db.delete(weatherContract.weatherEntry.TABLE_NAME, mSelection, mSelectionArgs);
+                break;
+            default:
+                throw new UnsupportedOperationException("Unkown Uri Exception" + uri);
+        }
+
+        if (delete != 0) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+
+        return delete;
     }
 
     @Override
     public int update(@NonNull Uri uri, @Nullable ContentValues contentValues, @Nullable String s, @Nullable String[] strings) {
         return 0;
+    }
+
+    @Override
+    public int bulkInsert(@NonNull Uri uri, @NonNull ContentValues[] values) {
+
+        final SQLiteDatabase db = mWeatherDbHelper.getWritableDatabase();
+
+        int match = sUriMatcher.match(uri);
+
+        switch (match) {
+
+            case CODE_WEATHER:
+                db.beginTransaction();
+                int rowsInserted = 0;
+
+                try {
+
+                    for ( ContentValues value : values ) {
+                        long weatherDate = value.getAsLong(weatherContract.weatherEntry.COLUMN_DATE);
+
+                        long _id = db.insert(weatherContract.weatherEntry.TABLE_NAME, null, value);
+                        if (_id != -1) {
+                            rowsInserted++;
+                        }
+
+                    }
+
+                    db.setTransactionSuccessful();
+
+                } finally {
+
+                    db.endTransaction();
+
+                }
+
+                if (rowsInserted > 0) {
+                    getContext().getContentResolver().notifyChange(uri, null);
+                }
+
+                return rowsInserted;
+
+            default:
+                return super.bulkInsert(uri, values);
+
+        }
+
     }
 }

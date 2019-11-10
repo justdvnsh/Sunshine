@@ -5,11 +5,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 
@@ -21,6 +23,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.loader.app.LoaderManager;
 import androidx.loader.content.AsyncTaskLoader;
+import androidx.loader.content.CursorLoader;
 import androidx.loader.content.Loader;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceManager;
@@ -37,6 +40,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.sunshine.data.weatherContract;
 import com.example.sunshine.utils.Network;
 import com.example.sunshine.utils.json;
 import com.google.android.gms.maps.model.LatLng;
@@ -48,7 +52,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity implements forecastAdapter.ListItemOnClickListener, LoaderManager.LoaderCallbacks<String[]>, SharedPreferences.OnSharedPreferenceChangeListener{
+public class MainActivity extends AppCompatActivity implements forecastAdapter.ListItemOnClickListener, LoaderManager.LoaderCallbacks<Cursor>, SharedPreferences.OnSharedPreferenceChangeListener{
 
     ProgressBar progressBar;
     TextView errorMessage;
@@ -61,6 +65,20 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
     LocationManager locationManager;
     LocationListener locationListener;
     URL urlToSearch;
+
+    private int mPosition = RecyclerView.NO_POSITION;
+
+    public static final int INDEX_WEATHER_DATE = 0;
+    public static final int INDEX_WEATHER_MAX_TEMP = 1;
+    public static final int INDEX_WEATHER_MIN_TEMP = 2;
+    public static final int INDEX_WEATHER_CONDITION_ID = 3;
+
+    public static final String[] MAIN_FORECAST_PROJECTION = {
+            weatherContract.weatherEntry.COLUMN_DATE,
+            weatherContract.weatherEntry.COLUMN_MAX_TEMP,
+            weatherContract.weatherEntry.COLUMN_MIN_TEMP,
+            weatherContract.weatherEntry.COLUMN_WEATHER_ID,
+    };
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
@@ -82,70 +100,34 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
 
     @NonNull
     @Override
-    public Loader<String[]> onCreateLoader(int id, @Nullable final Bundle args) {
-        return new AsyncTaskLoader<String[]>(this) {
+    public Loader<Cursor> onCreateLoader(int id, @Nullable final Bundle args) {
+        switch (id) {
+            case LOADER:
 
-            String weatherJSON[] = null;
+                Uri forecastQueryUri = weatherContract.weatherEntry.CONTENT_URI;
+                String sortOrder = weatherContract.weatherEntry.COLUMN_DATE + "ASC";
+                String mSelection = weatherContract.weatherEntry.getSqlSelectForTodayOnwards();
 
-            @Override
-            protected void onStartLoading() {
+                return new CursorLoader(this, forecastQueryUri, MAIN_FORECAST_PROJECTION, mSelection, null, sortOrder);
 
-                if (weatherJSON != null) {
-                    deliverResult(weatherJSON);
-                } else {
-
-                    progressBar.setVisibility(View.VISIBLE);
-                    forceLoad();
-
-                }
-
-            }
-
-            @Nullable
-            @Override
-            public String[] loadInBackground() {
-
-                try {
-
-                    if (urlToSearch != null) {
-
-                        String result = Network.getResponseFromHttpUrl(urlToSearch);
-
-                        String[] simpleJsonWeatherData = json.parseJson(
-                                MainActivity.this, result);
-
-                        return simpleJsonWeatherData;
-                    } else {
-                        return null;
-                    }
-
-                } catch(Exception e) {
-                    e.printStackTrace();
-                    return null;
-                }
-            }
-
-            public void deliverResult(String[] data) {
-                weatherJSON = data;
-                super.deliverResult(data);
-            }
-        };
-    }
-
-    @Override
-    public void onLoadFinished(@NonNull Loader<String[]> loader, String[] data) {
-        progressBar.setVisibility(View.INVISIBLE);
-        adapter.setWeatherData(data);
-        if ( data != null) {
-            showJSONData();
-        } else {
-            showErrorMessage();
+            default:
+                throw new RuntimeException("Loader not Implemented" + id);
         }
     }
 
     @Override
-    public void onLoaderReset(@NonNull Loader<String[]> loader) {
+    public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
+        adapter.swapCursor(data);
 
+        if (mPosition == RecyclerView.NO_POSITION) mPosition = 0;
+
+        recycle.smoothScrollToPosition(mPosition);
+        if (data.getCount() != 0) showJSONData();
+    }
+
+    @Override
+    public void onLoaderReset(@NonNull Loader<Cursor> loader) {
+        adapter.swapCursor(null);
     }
 
     public void showJSONData() {
@@ -251,7 +233,7 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
         LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
         recycle.setLayoutManager(layoutManager);
         recycle.setHasFixedSize(true);
-        adapter = new forecastAdapter(this);
+        adapter = new forecastAdapter(this, this);
         recycle.setAdapter(adapter);
         adapter.setWeatherData(null);
 
@@ -267,9 +249,10 @@ public class MainActivity extends AppCompatActivity implements forecastAdapter.L
     }
 
     @Override
-    public void onItemClickListener(String weather) {
+    public void onItemClickListener(long date) {
         Intent intent = new Intent(MainActivity.this, DetailActivity.class);
-        intent.putExtra("WeatherData", weather);
+        Uri uriForDateClicked = weatherContract.weatherEntry.buildWeatherUriWithDate(date);
+        intent.setData(uriForDateClicked);
         startActivity(intent);
     }
 
